@@ -8,10 +8,13 @@ const port = 3000;
 
 // Conexão com o banco de dados MySQL
 const db = mysql.createConnection({
-  host: 'localhost',
-  user: 'root',
-  password: '',
-  database: 'crushmycrush',
+  host: 'auth-db1844.hstgr.io',  // Substitua pelo host correto fornecido pela Hostinger
+  user: 'u290711684_admincmc',
+  password: 'Binho2108!',
+  database: 'u290711684_crushmycrush',  // Nome correto do banco de dados
+  waitForConnections: true,
+  connectionLimit: 10, // Limite de conexões
+  queueLimit: 0
 });
 
 // Conectar ao banco de dados
