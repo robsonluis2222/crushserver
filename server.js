@@ -1,10 +1,13 @@
 const express = require('express');
+const cors = require('cors');
 const mysql = require('mysql2');
 const formidable = require('formidable');
 const fs = require('fs');
 const path = require('path');
 const app = express();
 const port = 3000;
+
+app.use(cors());
 
 // Conexão com o banco de dados MySQL
 const db = mysql.createPool({
