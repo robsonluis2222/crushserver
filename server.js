@@ -19,14 +19,7 @@ const db = mysql.createPool({
   acquireTimeout: 10000   // Timeout para adquirir uma conexão do pool
 });
 
-// Conectar ao banco de dados
-db.connect((err) => {
-  if (err) {
-    console.error('Erro ao conectar ao banco de dados:', err.stack);
-    return;
-  }
-  console.log('Conectado ao banco de dados MySQL');
-});
+
 
 // Middleware para parsing de JSON e URL-encoded
 app.use(express.json());
