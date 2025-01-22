@@ -7,14 +7,16 @@ const app = express();
 const port = 3000;
 
 // Conexão com o banco de dados MySQL
-const db = mysql.createConnection({
-  host: 'auth-db1844.hstgr.io',  // Substitua pelo host correto fornecido pela Hostinger
+const db = mysql.createPool({
+  host: 'auth-db1844.hstgr.io',
   user: 'u290711684_admincmc',
   password: 'Binho2108!',
-  database: 'u290711684_crushmycrush',  // Nome correto do banco de dados
+  database: 'u290711684_crushmycrush',
   waitForConnections: true,
-  connectionLimit: 10, // Limite de conexões
-  queueLimit: 0
+  connectionLimit: 10,
+  queueLimit: 0,
+  connectTimeout: 10000,  // Timeout para conectar em milissegundos
+  acquireTimeout: 10000   // Timeout para adquirir uma conexão do pool
 });
 
 // Conectar ao banco de dados
