@@ -123,8 +123,9 @@ app.post('/api/submit', (req, res) => {
         background,
         data_casal,
         declaracao,
-        urlcall
-      ) VALUES (?, 'heart', ?, ?, ?)
+        urlcall,
+        ytlink
+      ) VALUES (?, 'heart', ?, ?, ?, ?)
     `;
 
     // Função para garantir que o valor seja uma string e não seja null ou undefined
