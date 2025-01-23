@@ -245,7 +245,7 @@ app.post('/api/submit-pro', (req, res) => {
         declaracao,
         urlcall,
         plano,
-        ytlink  // Aqui foi removido o comentário
+        ytlink
       ) VALUES (?, 'heart', ?, ?, ?, ?, ?)
     `;
 
