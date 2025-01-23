@@ -123,9 +123,8 @@ app.post('/api/submit', (req, res) => {
         background,
         data_casal,
         declaracao,
-        urlcall,
-        ytlink
-      ) VALUES (?, 'heart', ?, ?, ?, ?)
+        urlcall
+      ) VALUES (?, 'heart', ?, ?, ?)
     `;
 
     // Função para garantir que o valor seja uma string e não seja null ou undefined
@@ -191,9 +190,10 @@ app.post('/api/submit-pro', (req, res) => {
     const relationshipDate = fields.relationshipDate ? fields.relationshipDate[0] : '';
     const coupleLink = fields.coupleLink ? fields.coupleLink[0] : '';
     const selectedPlan = fields.selectedPlan ? fields.selectedPlan[0] : '';  // Se necessário
+    const musicLink = fields.musicLink ? fields.musicLink[0] : '';  // Recebendo o musicLink
 
     // Validação dos campos obrigatórios
-    if (!coupleName || !declarationText || !relationshipDate || !coupleLink || !selectedPlan) {
+    if (!coupleName || !declarationText || !relationshipDate || !coupleLink || !selectedPlan || !musicLink) {
       return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
     }
 
@@ -232,7 +232,8 @@ app.post('/api/submit-pro', (req, res) => {
       relationshipDate,
       declarationText,
       coupleLink,
-      selectedPlan
+      selectedPlan,
+      musicLink  // Incluindo o musicLink aqui
     });
 
     // Garantir que sempre passamos 5 parâmetros (não estamos inserindo fotos no banco)
@@ -243,8 +244,9 @@ app.post('/api/submit-pro', (req, res) => {
         data_casal,
         declaracao,
         urlcall,
-        plano
-      ) VALUES (?, 'heart', ?, ?, ?, ?)
+        plano,
+        ytlink  // Coluna adicional para o link do YouTube
+      ) VALUES (?, 'heart', ?, ?, ?, ?, ?)
     `;
 
     // Função para garantir que o valor seja uma string e não seja null ou undefined
@@ -257,21 +259,24 @@ app.post('/api/submit-pro', (req, res) => {
     const sanitizedRelationshipDate = sanitizeString(relationshipDate);
     const sanitizedDeclarationText = sanitizeString(declarationText);
     const sanitizedCoupleLink = sanitizeString(coupleLink);
+    const sanitizedMusicLink = sanitizeString(musicLink);  // Sanitizando o musicLink
 
     console.log('Parâmetros sanitizados:', {
       sanitizedCoupleName,
       sanitizedRelationshipDate,
       sanitizedDeclarationText,
-      sanitizedCoupleLink
+      sanitizedCoupleLink,
+      sanitizedMusicLink  // Incluindo o sanitizedMusicLink
     });
 
-    // Inserindo os dados no banco de dados (sem fotos)
+    // Inserindo os dados no banco de dados (agora incluindo o musicLink na coluna ytlink)
     db.execute(insertQuery, [
       sanitizedCoupleName,                          // nome_casal
       sanitizedRelationshipDate,                     // data_casal
       sanitizedDeclarationText,                      // declaracao
       sanitizedCoupleLink,                           // urlcall
-      selectedPlan
+      selectedPlan,                                  // plano
+      sanitizedMusicLink                             // ytlink (link do YouTube)
     ], (err, result) => {
       if (err) {
         console.error('Erro ao inserir dados no banco:', err.stack);
@@ -285,11 +290,13 @@ app.post('/api/submit-pro', (req, res) => {
           declarationText,
           relationshipDate,
           coupleLink,
+          musicLink,  // Incluindo o musicLink na resposta
         },
       });
     });
   });
 });
+
 
 
 
