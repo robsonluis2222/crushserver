@@ -245,7 +245,7 @@ app.post('/api/submit-pro', (req, res) => {
         declaracao,
         urlcall,
         plano,
-        ytlink  // Coluna adicional para o link do YouTube
+        ytlink  // Aqui foi removido o comentário
       ) VALUES (?, 'heart', ?, ?, ?, ?, ?)
     `;
 
@@ -296,7 +296,6 @@ app.post('/api/submit-pro', (req, res) => {
     });
   });
 });
-
 
 
 
