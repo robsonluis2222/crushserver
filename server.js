@@ -82,8 +82,12 @@ app.post('/api/submit', (req, res) => {
 
     // Verificar se as imagens em Base64 foram enviadas
     if (fields.photosBase64) {
-      // Se os campos forem enviados como fotosBase64[0], photosBase64[1], etc, vamos garantir que são processados corretamente
+      // Se os campos forem enviados como photosBase64[0], photosBase64[1], etc, vamos garantir que são processados corretamente
+      // Caso o formidable esteja enviando como um único campo de array ou um objeto, tratamos dessa forma
       const base64Files = Array.isArray(fields.photosBase64) ? fields.photosBase64 : Object.values(fields.photosBase64);
+
+      // Log para ver o conteúdo
+      console.log('Base64 Files:', base64Files);
 
       base64Files.forEach((base64, index) => {
         // Remover a parte do header do Base64 (ex: "data:image/jpeg;base64,")
