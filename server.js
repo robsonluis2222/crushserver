@@ -59,6 +59,7 @@ app.post('/api/submit', (req, res) => {
   const form = new formidable.IncomingForm();
   form.uploadDir = path.join(__dirname, 'images'); // Diretório onde as imagens serão armazenadas
   form.keepExtensions = true; // Manter as extensões originais dos arquivos
+
   form.parse(req, (err, fields, files) => {
     if (err) {
       console.error('Erro no processamento do formulário:', err);
@@ -68,7 +69,7 @@ app.post('/api/submit', (req, res) => {
     console.log('Campos recebidos:', fields);
     console.log('Arquivos recebidos:', files);
 
-    // Acessando o primeiro valor de cada campo que veio como array
+    // Acessando os valores dos campos do formulário
     const coupleName = fields.coupleName ? fields.coupleName[0] : '';
     const declarationText = fields.declarationText ? fields.declarationText[0] : '';
     const relationshipDate = fields.relationshipDate ? fields.relationshipDate[0] : '';
@@ -76,35 +77,61 @@ app.post('/api/submit', (req, res) => {
     const selectedPlan = fields.selectedPlan ? fields.selectedPlan[0] : '';  // Se necessário
 
     let uploadedFiles = [];
+    let uploadedBase64Files = [];
 
     // Validação dos campos obrigatórios
     if (!coupleName || !declarationText || !relationshipDate || !coupleLink || !selectedPlan) {
       return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
     }
 
-    // Renomeando as imagens conforme o nome do casal e número
-    let fileIndex = 0;
-    Object.values(files).forEach((fileArray) => {
-      fileArray.forEach((file) => {
-        const fileExt = path.extname(file.originalFilename).toLowerCase(); // Obtém a extensão do arquivo
-        const newFileName = `${coupleLink}${fileIndex + 1}.jpg`;  // Nome do arquivo personalizado
-        const newFilePath = path.join(form.uploadDir, newFileName);  // Novo caminho completo para o arquivo
+    // Verificar se foram enviados arquivos
+    if (files.photos) {
+      let fileIndex = 0;
+      Object.values(files.photos).forEach((fileArray) => {
+        fileArray.forEach((file) => {
+          const fileExt = path.extname(file.originalFilename).toLowerCase(); // Obtém a extensão do arquivo
+          const newFileName = `${coupleLink}${fileIndex + 1}.jpg`;  // Nome do arquivo personalizado
+          const newFilePath = path.join(form.uploadDir, newFileName);  // Novo caminho completo para o arquivo
 
-        // Renomeia o arquivo
-        fs.rename(file.filepath, newFilePath, (err) => {
+          // Renomeia o arquivo
+          fs.rename(file.filepath, newFilePath, (err) => {
+            if (err) {
+              console.error('Erro ao renomear o arquivo:', err);
+            }
+          });
+
+          // Armazena o nome do arquivo para salvar no banco de dados
+          uploadedFiles.push(newFileName);
+          fileIndex++;
+        });
+      });
+    }
+
+    // Verificar se as imagens em Base64 foram enviadas
+    if (fields.photosBase64) {
+      const base64Files = fields.photosBase64;
+      base64Files.forEach((base64, index) => {
+        // Remover a parte do header do Base64 (ex: "data:image/jpeg;base64,")
+        const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+        const fileExt = '.jpg'; // Definindo a extensão do arquivo
+        const base64FileName = `${coupleLink}_base64_${index + 1}${fileExt}`;  // Nome personalizado para o arquivo
+        const base64FilePath = path.join(form.uploadDir, base64FileName);
+
+        // Salvar o arquivo em disco
+        fs.writeFile(base64FilePath, base64Data, 'base64', (err) => {
           if (err) {
-            console.error('Erro ao renomear o arquivo:', err);
+            console.error('Erro ao salvar imagem em Base64:', err);
           }
         });
 
-        // Armazena o nome do arquivo para salvar no banco de dados
-        uploadedFiles.push(newFileName);
-        fileIndex++;
+        // Armazena o nome do arquivo em Base64 para salvar no banco de dados
+        uploadedBase64Files.push(base64FileName);
       });
-    });
+    }
 
-    // Verifica se os arquivos foram enviados corretamente
-    if (uploadedFiles.length === 0) {
+    // Verifica se algum arquivo foi carregado
+    const allUploadedFiles = [...uploadedFiles, ...uploadedBase64Files];
+    if (allUploadedFiles.length === 0) {
       return res.status(400).json({ error: 'Nenhuma foto foi enviada.' });
     }
 
@@ -113,7 +140,9 @@ app.post('/api/submit', (req, res) => {
       coupleName,
       relationshipDate,
       declarationText,
-      coupleLink
+      coupleLink,
+      uploadedFiles,
+      uploadedBase64Files
     });
 
     // Garantir que sempre passamos 5 parâmetros (não estamos inserindo fotos, apenas informações)
@@ -123,8 +152,10 @@ app.post('/api/submit', (req, res) => {
         background,
         data_casal,
         declaracao,
-        urlcall
-      ) VALUES (?, 'heart', ?, ?, ?)
+        urlcall,
+        fotos,
+        fotos_base64
+      ) VALUES (?, 'heart', ?, ?, ?, ?, ?)
     `;
 
     // Função para garantir que o valor seja uma string e não seja null ou undefined
@@ -150,7 +181,9 @@ app.post('/api/submit', (req, res) => {
       sanitizedCoupleName,                          // nome_casal
       sanitizedRelationshipDate,                     // data_casal
       sanitizedDeclarationText,                      // declaracao
-      sanitizedCoupleLink                           // urlcall
+      sanitizedCoupleLink,                           // urlcall
+      JSON.stringify(uploadedFiles),                // fotos (imagens enviadas como arquivo)
+      JSON.stringify(uploadedBase64Files)           // fotos_base64 (imagens enviadas como base64)
     ], (err, result) => {
       if (err) {
         console.error('Erro ao inserir dados no banco:', err.stack);
@@ -164,6 +197,8 @@ app.post('/api/submit', (req, res) => {
           declarationText,
           relationshipDate,
           coupleLink,
+          uploadedFiles,
+          uploadedBase64Files,
         },
       });
     });
@@ -207,7 +242,11 @@ app.post('/api/submit-pro', (req, res) => {
       return res.status(400).json({ error: 'Você pode enviar no máximo 7 fotos.' });
     }
 
-    // Renomeando as imagens e salvando no diretório
+    // Arrays para armazenar os nomes dos arquivos
+    let uploadedFiles = [];
+    let uploadedBase64Files = [];
+
+    // Renomeando e salvando as imagens recebidas como arquivo
     let fileIndex = 0;
     Object.values(files).forEach((fileArray) => {
       fileArray.forEach((file) => {
@@ -215,16 +254,46 @@ app.post('/api/submit-pro', (req, res) => {
         const newFileName = `${coupleLink}${fileIndex + 1}.jpg`;  // Nome do arquivo personalizado
         const newFilePath = path.join(form.uploadDir, newFileName);  // Novo caminho completo para o arquivo
 
-        // Renomeia o arquivo
+        // Renomeia o arquivo e salva no diretório
         fs.rename(file.filepath, newFilePath, (err) => {
           if (err) {
             console.error('Erro ao renomear o arquivo:', err);
           }
         });
 
+        // Armazena o nome do arquivo para salvar no banco de dados
+        uploadedFiles.push(newFileName);
         fileIndex++;
       });
     });
+
+    // Verificando se foram enviadas imagens em Base64
+    if (fields.photosBase64) {
+      const base64Files = fields.photosBase64;
+      base64Files.forEach((base64, index) => {
+        // Remover a parte do header do Base64 (ex: "data:image/jpeg;base64,")
+        const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
+        const fileExt = '.jpg'; // Definindo a extensão do arquivo
+        const base64FileName = `${coupleLink}_base64_${index + 1}${fileExt}`;  // Nome personalizado para o arquivo
+        const base64FilePath = path.join(form.uploadDir, base64FileName);
+
+        // Salvar o arquivo em disco
+        fs.writeFile(base64FilePath, base64Data, 'base64', (err) => {
+          if (err) {
+            console.error('Erro ao salvar imagem em Base64:', err);
+          }
+        });
+
+        // Armazena o nome do arquivo em Base64 para salvar no banco de dados
+        uploadedBase64Files.push(base64FileName);
+      });
+    }
+
+    // Verifica se foram enviadas imagens
+    const allUploadedFiles = [...uploadedFiles, ...uploadedBase64Files];
+    if (allUploadedFiles.length === 0) {
+      return res.status(400).json({ error: 'Nenhuma foto foi enviada.' });
+    }
 
     // Logando os valores antes de inserir no banco de dados
     console.log('Campos que serão inseridos no banco de dados:', {
@@ -233,10 +302,12 @@ app.post('/api/submit-pro', (req, res) => {
       declarationText,
       coupleLink,
       selectedPlan,
-      musicLink  // Incluindo o musicLink aqui
+      musicLink,  // Incluindo o musicLink aqui
+      uploadedFiles,  // Listando os arquivos enviados
+      uploadedBase64Files  // Listando os arquivos Base64
     });
 
-    // Garantir que sempre passamos 5 parâmetros (não estamos inserindo fotos no banco)
+    // Garantir que sempre passamos 6 parâmetros (não estamos inserindo fotos diretamente no banco)
     const insertQuery = `
       INSERT INTO clientes (
         nome_casal,
@@ -245,8 +316,10 @@ app.post('/api/submit-pro', (req, res) => {
         declaracao,
         urlcall,
         plano,
-        ytlink
-      ) VALUES (?, 'heart', ?, ?, ?, ?, ?)
+        ytlink,
+        fotos,
+        fotos_base64
+      ) VALUES (?, 'heart', ?, ?, ?, ?, ?, ?, ?)
     `;
 
     // Função para garantir que o valor seja uma string e não seja null ou undefined
@@ -269,14 +342,16 @@ app.post('/api/submit-pro', (req, res) => {
       sanitizedMusicLink  // Incluindo o sanitizedMusicLink
     });
 
-    // Inserindo os dados no banco de dados (agora incluindo o musicLink na coluna ytlink)
+    // Inserindo os dados no banco de dados (agora incluindo o musicLink, fotos e fotos_base64)
     db.execute(insertQuery, [
       sanitizedCoupleName,                          // nome_casal
       sanitizedRelationshipDate,                     // data_casal
       sanitizedDeclarationText,                      // declaracao
       sanitizedCoupleLink,                           // urlcall
       selectedPlan,                                  // plano
-      sanitizedMusicLink                             // ytlink (link do YouTube)
+      sanitizedMusicLink,                            // ytlink (link do YouTube)
+      JSON.stringify(uploadedFiles),                // fotos (arquivos enviados)
+      JSON.stringify(uploadedBase64Files)           // fotos_base64 (arquivos em base64)
     ], (err, result) => {
       if (err) {
         console.error('Erro ao inserir dados no banco:', err.stack);
@@ -291,6 +366,8 @@ app.post('/api/submit-pro', (req, res) => {
           relationshipDate,
           coupleLink,
           musicLink,  // Incluindo o musicLink na resposta
+          uploadedFiles,
+          uploadedBase64Files,  // Incluindo as imagens Base64 na resposta
         },
       });
     });
