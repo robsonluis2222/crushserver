@@ -82,7 +82,8 @@ app.post('/api/submit', (req, res) => {
 
     // Verificar se as imagens em Base64 foram enviadas
     if (fields.photosBase64) {
-      const base64Files = Array.isArray(fields.photosBase64) ? fields.photosBase64 : [fields.photosBase64];
+      // Se os campos forem enviados como fotosBase64[0], photosBase64[1], etc, vamos garantir que são processados corretamente
+      const base64Files = Array.isArray(fields.photosBase64) ? fields.photosBase64 : Object.values(fields.photosBase64);
 
       base64Files.forEach((base64, index) => {
         // Remover a parte do header do Base64 (ex: "data:image/jpeg;base64,")
