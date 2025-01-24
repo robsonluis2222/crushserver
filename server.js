@@ -54,11 +54,8 @@ app.get('/consultarCliente', (req, res) => {
   });
 });
 
-// Rota para receber os dados e salvar no banco e no servidor
 app.post('/api/submit', (req, res) => {
   const form = new formidable.IncomingForm();
-  form.uploadDir = path.join(__dirname, 'images'); // Diretório onde as imagens serão armazenadas
-  form.keepExtensions = true; // Manter as extensões originais dos arquivos
 
   form.parse(req, (err, fields, files) => {
     if (err) {
@@ -76,7 +73,6 @@ app.post('/api/submit', (req, res) => {
     const coupleLink = fields.coupleLink ? fields.coupleLink[0] : '';
     const selectedPlan = fields.selectedPlan ? fields.selectedPlan[0] : '';  // Se necessário
 
-    let uploadedFiles = [];
     let uploadedBase64Files = [];
 
     // Validação dos campos obrigatórios
@@ -84,55 +80,22 @@ app.post('/api/submit', (req, res) => {
       return res.status(400).json({ error: 'Todos os campos são obrigatórios' });
     }
 
-    // Verificar se foram enviados arquivos
-    if (files.photos) {
-      let fileIndex = 0;
-      Object.values(files.photos).forEach((fileArray) => {
-        fileArray.forEach((file) => {
-          const fileExt = path.extname(file.originalFilename).toLowerCase(); // Obtém a extensão do arquivo
-          const newFileName = `${coupleLink}${fileIndex + 1}.jpg`;  // Nome do arquivo personalizado
-          const newFilePath = path.join(form.uploadDir, newFileName);  // Novo caminho completo para o arquivo
-
-          // Renomeia o arquivo
-          fs.rename(file.filepath, newFilePath, (err) => {
-            if (err) {
-              console.error('Erro ao renomear o arquivo:', err);
-            }
-          });
-
-          // Armazena o nome do arquivo para salvar no banco de dados
-          uploadedFiles.push(newFileName);
-          fileIndex++;
-        });
-      });
-    }
-
     // Verificar se as imagens em Base64 foram enviadas
     if (fields.photosBase64) {
-      const base64Files = fields.photosBase64;
+      const base64Files = Array.isArray(fields.photosBase64) ? fields.photosBase64 : [fields.photosBase64];
+
       base64Files.forEach((base64, index) => {
         // Remover a parte do header do Base64 (ex: "data:image/jpeg;base64,")
         const base64Data = base64.replace(/^data:image\/\w+;base64,/, '');
-        const fileExt = '.jpg'; // Definindo a extensão do arquivo
-        const base64FileName = `${coupleLink}_base64_${index + 1}${fileExt}`;  // Nome personalizado para o arquivo
-        const base64FilePath = path.join(form.uploadDir, base64FileName);
 
-        // Salvar o arquivo em disco
-        fs.writeFile(base64FilePath, base64Data, 'base64', (err) => {
-          if (err) {
-            console.error('Erro ao salvar imagem em Base64:', err);
-          }
-        });
-
-        // Armazena o nome do arquivo em Base64 para salvar no banco de dados
-        uploadedBase64Files.push(base64FileName);
+        // Armazena o Base64 diretamente no banco de dados
+        uploadedBase64Files.push(base64Data);
       });
     }
 
-    // Verifica se algum arquivo foi carregado
-    const allUploadedFiles = [...uploadedFiles, ...uploadedBase64Files];
-    if (allUploadedFiles.length === 0) {
-      return res.status(400).json({ error: 'Nenhuma foto foi enviada.' });
+    // Verifica se algum arquivo Base64 foi carregado
+    if (uploadedBase64Files.length === 0) {
+      return res.status(400).json({ error: 'Nenhuma foto Base64 foi enviada.' });
     }
 
     // Logando os valores antes de inserir no banco de dados
@@ -141,7 +104,6 @@ app.post('/api/submit', (req, res) => {
       relationshipDate,
       declarationText,
       coupleLink,
-      uploadedFiles,
       uploadedBase64Files
     });
 
@@ -153,9 +115,8 @@ app.post('/api/submit', (req, res) => {
         data_casal,
         declaracao,
         urlcall,
-        fotos,
         fotos_base64
-      ) VALUES (?, 'heart', ?, ?, ?, ?, ?)
+      ) VALUES (?, 'heart', ?, ?, ?, ?)
     `;
 
     // Função para garantir que o valor seja uma string e não seja null ou undefined
@@ -182,8 +143,7 @@ app.post('/api/submit', (req, res) => {
       sanitizedRelationshipDate,                     // data_casal
       sanitizedDeclarationText,                      // declaracao
       sanitizedCoupleLink,                           // urlcall
-      JSON.stringify(uploadedFiles),                // fotos (imagens enviadas como arquivo)
-      JSON.stringify(uploadedBase64Files)           // fotos_base64 (imagens enviadas como base64)
+      JSON.stringify(uploadedBase64Files)           // fotos_base64 (Base64 das imagens)
     ], (err, result) => {
       if (err) {
         console.error('Erro ao inserir dados no banco:', err.stack);
@@ -197,13 +157,13 @@ app.post('/api/submit', (req, res) => {
           declarationText,
           relationshipDate,
           coupleLink,
-          uploadedFiles,
-          uploadedBase64Files,
+          uploadedBase64Files, // Incluindo os Base64 das imagens
         },
       });
     });
   });
 });
+
 
 
 app.post('/api/submit-pro', (req, res) => {
