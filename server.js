@@ -54,6 +54,24 @@ app.get('/consultarCliente', (req, res) => {
   });
 });
 
+// Rota para incrementar o valor de clicks
+app.post('/api/incrementClicks', (req, res) => {
+  const query = 'UPDATE pixel SET clicks = clicks + 1 WHERE id = 1';
+
+  db.execute(query, (err, result) => {
+    if (err) {
+      console.error('Erro ao atualizar a contagem de cliques:', err.stack);
+      return res.status(500).json({ error: 'Erro ao atualizar a contagem de cliques' });
+    }
+
+    res.status(200).json({
+      message: 'Contagem de cliques atualizada com sucesso!',
+      updatedClicks: result.affectedRows, // Número de registros afetados
+    });
+  });
+});
+
+
 // Rota para receber os dados e salvar no banco e no servidor
 app.post('/api/submit', (req, res) => {
   const form = new formidable.IncomingForm();
